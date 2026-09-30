@@ -1,0 +1,90 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow: hidden;
+  height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  max-width: 480px;
+  height: 100vh;
+  margin: 0 auto;
+  position: relative;
+  background: radial-gradient(circle at 85% 0%, #E7F0FF 0, transparent 30%), var(--color-bg);
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0,0,0,0.08);
+}
+
+/* Screen management — each "page" is a section, only .active is shown */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(20px);
+  transition: opacity var(--transition-screen), transform var(--transition-screen), visibility var(--transition-screen);
+  z-index: 1;
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  z-index: 2;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 20px 14px;
+  background: transparent;
+}
+
+.topbar h2 { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: -0.4px; }
+.eyebrow { color: var(--color-text-muted); font-size: 10px; font-weight: 800; letter-spacing: 1.4px; }
+.title-spark { color: var(--color-accent); }
+
+.icon-btn {
+  background: var(--color-surface);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(31, 65, 112, 0.1);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.icon-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.icon-btn:active { transform: scale(0.9); }
+.icon-btn:focus-visible { outline: 3px solid var(--color-primary-light); outline-offset: 3px; }
+.topbar > .icon-btn:first-child:hover { transform: translateX(-2px) translateY(-2px); }
+.topbar > .icon-btn:first-child:active { transform: translateX(-1px) scale(0.9); }
+
+h1, h2, h3 { font-weight: 700; }
+button { font-family: inherit; }
+input, button { appearance: none; -webkit-appearance: none; }
+/* Smooth scrollbars, no ugly system scrollbar on mobile-style panels */
+.platform-cards, .pd-content, .ap-content, .ai-chat {
+  scrollbar-width: none;
+}
+.platform-cards::-webkit-scrollbar,
+.pd-content::-webkit-scrollbar,
+.ap-content::-webkit-scrollbar,
+.ai-chat::-webkit-scrollbar {
+  display: none;
+}
+
+/* Global press feedback for anything clickable */
+.platform-card, .btn-primary, .btn-secondary, .fab, .icon-btn, .ai-suggestion-chip {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}

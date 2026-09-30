@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StreakForce 🔥</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔥%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/splash.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/platform_detail.css">
+<link rel="stylesheet" href="css/add_platform.css">
+<link rel="stylesheet" href="css/ai_assistant.css">
+<link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/tracker.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ===================== ACCOUNT ACCESS ===================== -->
+  <section id="screen-auth" class="screen">
+    <div class="auth-panel">
+      <div class="auth-mark">SF</div>
+      <p class="eyebrow">YOUR DAILY PRACTICE, IN ONE PLACE</p>
+      <h1>Make progress<br><em>visible.</em></h1>
+      <p class="auth-copy">A personal home for your coding, language learning, and ideas.</p>
+      <form id="auth-form" class="auth-form">
+        <label for="auth-email">Email address</label>
+        <input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="auth-password">Password</label>
+        <input id="auth-password" type="password" autocomplete="current-password" minlength="10" placeholder="At least 10 characters" required>
+        <button id="auth-submit" class="btn-primary" type="submit">Sign in</button>
+        <p id="auth-status" class="auth-status" role="status"></p>
+      </form>
+      <button id="auth-mode-toggle" class="auth-mode-toggle" type="button">New here? Create an account</button>
+      <p class="auth-privacy">Your activity is private to your account. Email and password are stored securely on this device's app server.</p>
+    </div>
+  </section>
+
+  <!-- ===================== SPLASH SCREEN ===================== -->
+  <section id="screen-splash" class="screen active">
+    <div class="splash-content">
+      <div class="splash-logo">🔥</div>
+      <h1 class="splash-title">Streak<span>Force</span></h1>
+      <p class="splash-tagline">Code daily. Stay unstoppable. 💪</p>
+      <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <section id="screen-settings" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-dashboard" aria-label="Back">⬅️</button>
+      <h2>Settings ⚙️</h2>
+      <span></span>
+    </header>
+    <div id="settings-content" class="settings-content"></div>
+  </section>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section id="screen-dashboard" class="screen">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">YOUR PRACTICE, AT A GLANCE</p>
+        <h2>StreakForce <span class="title-spark">✳</span></h2>
+      </div>
+      <div class="account-actions">
+        <span id="account-email" class="account-email"></span>
+        <button class="icon-btn" id="btn-settings" aria-label="Open settings" title="Settings">⚙</button>
+        <button class="icon-btn" id="btn-logout" aria-label="Sign out" title="Sign out">↗</button>
+      </div>
+    </header>
+
+    <main class="dashboard-scroll">
+      <div id="dashboard-overview" class="dashboard-overview"></div>
+      <aside id="motivation-banner" class="motivation-banner" hidden></aside>
+      <div id="dashboard-summary" class="dashboard-summary"></div>
+      <div id="period-summary" class="period-summary"></div>
+      <section class="tracker-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">THE DAILY LOG</p><h2>Activity by date</h2></div>
+          <label class="month-picker"><span class="sr-only">Choose month</span><input id="tracker-month" type="month"></label>
+        </div>
+        <div id="tracker-content" class="tracker-content"></div>
+      </section>
+      <section class="chart-section">
+        <div class="section-heading"><div><p class="eyebrow">CONSISTENCY OVER TIME</p><h2>Your rhythm</h2></div></div>
+        <div class="card dashboard-chart-card"><div class="chart-canvas-wrap"><canvas id="dashboard-chart"></canvas></div></div>
+      </section>
+      <section class="platform-section">
+        <div class="section-heading"><div><p class="eyebrow">ALL SEVEN TRACKS</p><h2>Platforms</h2></div></div>
+        <div id="platform-cards" class="platform-cards"><!-- injected by platforms.js --></div>
+      </section>
+    </main>
+
+    <button class="fab" id="btn-add-platform">➕</button>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-screen="screen-dashboard" aria-label="Home">🏠<span>Home</span></button>
+      <button class="nav-item" data-screen="screen-ai" aria-label="AI Coach">🤖<span>AI Coach</span></button>
+      <button class="nav-item" data-screen="screen-add-platform" aria-label="Platforms">🧩<span>Platforms</span></button>
+    </nav>
+  </section>
+
+  <!-- ===================== PLATFORM DETAIL / ANALYTICS ===================== -->
+  <section id="screen-platform-detail" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-dashboard">⬅️</button>
+      <h2 id="pd-platform-name">Platform</h2>
+      <span></span>
+    </header>
+    <div id="pd-content" class="pd-content"><!-- injected by charts.js / platforms.js --></div>
+  </section>
+
+  <!-- ===================== ADD / MANAGE PLATFORM ===================== -->
+  <section id="screen-add-platform" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-dashboard">⬅️</button>
+      <h2>Manage Platforms 🧩</h2>
+      <span></span>
+    </header>
+    <div id="ap-content" class="ap-content"><!-- injected by platforms.js --></div>
+  </section>
+
+  <!-- ===================== AI ASSISTANT ===================== -->
+  <section id="screen-ai" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-dashboard">⬅️</button>
+      <h2>AI Coach 🤖</h2>
+      <span></span>
+    </header>
+    <div id="ai-chat" class="ai-chat"></div>
+    <div class="ai-input-bar">
+      <input id="ai-input" type="text" placeholder="Ask me anything about your streaks...">
+      <button id="ai-send" class="icon-btn">📤</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+<dialog id="activity-dialog" class="activity-dialog">
+  <form id="activity-form" method="dialog">
+    <div class="dialog-top"><div><p class="eyebrow">DAILY CHECK-IN</p><h2 id="activity-title">Log activity</h2></div><button id="activity-close" type="button" class="icon-btn" aria-label="Close">×</button></div>
+    <label for="entry-platform">Platform</label>
+    <select id="entry-platform" required></select>
+    <label for="entry-date">Date</label>
+    <input id="entry-date" type="date" required>
+    <div id="entry-amount-wrap"><label id="entry-amount-label" for="entry-amount">Amount</label><input id="entry-amount" type="number" min="0" step="1" value="1" required></div>
+    <label id="entry-note-label" for="entry-note">Note <span>(optional)</span></label>
+    <textarea id="entry-note" rows="3" maxlength="1000" placeholder="A thought worth keeping"></textarea>
+    <p id="entry-help" class="entry-help"></p>
+    <p id="entry-status" class="auth-status" role="status"></p>
+    <button id="entry-save" class="btn-primary" type="submit">Save activity</button>
+  </form>
+</dialog>
+
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/streaks.js"></script>
+<script src="js/tracker.js"></script>
+<script src="js/platforms.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ai_assistant.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

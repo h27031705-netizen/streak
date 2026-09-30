@@ -1,0 +1,4 @@
+node_modules/
+streakforce.sqlite
+streakforce.sqlite-shm
+streakforce.sqlite-wal

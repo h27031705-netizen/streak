@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+  /* Brand */
+  --color-primary: #246BFD;
+  --color-primary-dark: #1551C8;
+  --color-primary-light: #82B1FF;
+  --color-accent: #FF6B4A;
+  --color-accent-dark: #E24D31;
+  --color-bg: #F5F8FC;
+  --color-surface: #FFFFFF;
+  --color-text: #162033;
+  --color-text-muted: #718096;
+  --color-border: #E5EBF4;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #246BFD, #4C9BFF);
+  --gradient-accent: linear-gradient(135deg, #FF8B65, #FF5D4C);
+
+  /* Streak system */
+  --color-streak-green: #22C55E;
+  --color-streak-green-bg: #DCFCE7;
+  --color-streak-yellow: #F59E0B;
+  --color-streak-yellow-bg: #FEF3C7;
+  --color-streak-red: #EF4444;
+  --color-streak-red-bg: #FEE2E2;
+
+  /* Shape / motion */
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --shadow-card: 0 8px 24px rgba(31, 65, 112, 0.08);
+  --shadow-card-hover: 0 14px 30px rgba(31, 65, 112, 0.16);
+  --shadow-fab: 0 10px 24px rgba(255, 107, 107, 0.45);
+  --transition-fast: 0.18s ease;
+  --transition-screen: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-main: 'DM Sans', 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'DM Sans', sans-serif;
+}
+
+:root[data-theme="dark"], :root[data-theme="dark"] body {
+  --color-bg: #101827;
+  --color-surface: #182337;
+  --color-text: #F4F7FC;
+  --color-text-muted: #A6B3C7;
+  --color-border: #293A54;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg: #101827;
+    --color-surface: #182337;
+    --color-text: #F4F7FC;
+    --color-text-muted: #A6B3C7;
+    --color-border: #293A54;
+  }
+}
