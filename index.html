@@ -31,14 +31,17 @@
       <h1>Make progress<br><em>visible.</em></h1>
       <p class="auth-copy">A personal home for your coding, language learning, and ideas.</p>
       <form id="auth-form" class="auth-form">
-        <label for="auth-email">Email address</label>
-        <input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <div id="auth-name-field" hidden><label for="auth-name">Name</label><input id="auth-name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" disabled></div>
+        <label id="auth-email-label" for="auth-email">Email / User ID</label>
+        <input id="auth-email" type="text" autocomplete="username" placeholder="you@example.com or user ID" required>
         <label for="auth-password">Password</label>
-        <input id="auth-password" type="password" autocomplete="current-password" minlength="10" placeholder="At least 10 characters" required>
-        <button id="auth-submit" class="btn-primary" type="submit">Sign in</button>
+        <div class="password-field"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" placeholder="At least 10 characters" required><button class="password-visibility" type="button" data-password-target="auth-password" aria-label="Show password" title="Show password">◉</button></div>
+        <div id="auth-confirm-field" hidden><label for="auth-confirm-password">Confirm password</label><div class="password-field"><input id="auth-confirm-password" type="password" autocomplete="new-password" minlength="10" placeholder="Re-enter your password" disabled><button class="password-visibility" type="button" data-password-target="auth-confirm-password" aria-label="Show confirm password" title="Show password">◉</button></div></div>
+        <label id="remember-row" class="remember-row"><input id="remember-me" type="checkbox"><span>Remember me</span></label>
+        <button id="auth-submit" class="btn-primary" type="submit">Login</button>
         <p id="auth-status" class="auth-status" role="status"></p>
       </form>
-      <button id="auth-mode-toggle" class="auth-mode-toggle" type="button">New here? Create an account</button>
+      <button id="auth-mode-toggle" class="auth-mode-toggle" type="button">Create New Account</button>
       <p class="auth-privacy">Your activity is private to your account. Email and password are stored securely on this device's app server.</p>
     </div>
   </section>
@@ -72,6 +75,7 @@
       </div>
       <div class="account-actions">
         <span id="account-email" class="account-email"></span>
+        <div class="notification-wrap"><button class="icon-btn notification-bell" id="btn-notifications" aria-label="Notifications" aria-expanded="false" title="Notifications">🔔<span id="notification-count" class="notification-count" hidden></span></button><div id="notification-panel" class="notification-panel" hidden></div></div>
         <button class="icon-btn" id="btn-settings" aria-label="Open settings" title="Settings">⚙</button>
         <button class="icon-btn" id="btn-logout" aria-label="Sign out" title="Sign out">↗</button>
       </div>
@@ -81,6 +85,7 @@
       <div id="dashboard-overview" class="dashboard-overview"></div>
       <aside id="motivation-banner" class="motivation-banner" hidden></aside>
       <div id="dashboard-summary" class="dashboard-summary"></div>
+      <section id="dashboard-focus" class="dashboard-focus" aria-label="Today's focus and achievements"></section>
       <div id="period-summary" class="period-summary"></div>
       <section class="tracker-section">
         <div class="section-heading">

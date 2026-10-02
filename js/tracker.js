@@ -1,5 +1,34 @@
 const MANUAL_PLATFORM_IDS = ['codechef', 'speakits', 'duolingo', 'dsa-ideas'];
 let dashboardChart;
+let notificationInitKey = '';
+let notificationInitPromise = null;
+let notificationTimer = null;
+let notificationProcessing = false;
+let pendingRefreshPromise = null;
+const MANUAL_TRACKING_IDS = ['speakits', 'duolingo', 'dsa-ideas'];
+const MOTIVATION_QUOTES = [
+  'One good book can change your thinking today.',
+  'Small, steady practice makes difficult things familiar.',
+  'A solved problem is proof that patience works.',
+  'Consistency is a quiet way to make progress visible.',
+  'Every new word opens a small window into another world.',
+  'Curiosity is a skill. Give it a little time today.',
+  'You do not need a perfect session; you need a beginning.',
+  'Learning compounds when you return to it.',
+  'A clear idea written down is already a useful step.',
+  'Progress grows from the work you choose to repeat.',
+  'Make room for one focused thing at a time.',
+  'Today can be small and still count.'
+];
+const PLATFORM_REMINDERS = {
+  leetcode: 'One focused problem is enough to keep your coding rhythm moving.',
+  codechef: 'Ready for the code crack',
+  codeforces: 'A little practice keeps your contest instincts sharp.',
+  atcoder: 'Take on one small challenge today.',
+  speakits: 'A few minutes of listening and speaking.',
+  duolingo: 'New language, new people. Keep your lesson going.',
+  'dsa-ideas': 'Give one DSA topic a little focused time.'
+};
 
 function monthKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -61,8 +90,9 @@ function renderMotivation() {
     { id: 'leetcode', days: 2, message: 'One focused problem is enough to keep your coding rhythm moving.' }
   ];
   const suggestion = candidates.find(candidate => {
-    const lastActivity = getPlatformStats(AppData.getPlatform(candidate.id)).lastActivity;
-    return lastActivity && daysBetween(lastActivity, todayISO()) >= candidate.days;
+    const platform = AppData.getPlatform(candidate.id);
+    const lastActivity = getPlatformStats(platform).lastActivity;
+    return !platform.frozen && lastActivity && daysBetween(lastActivity, todayISO()) >= candidate.days;
   });
   if (!suggestion) { banner.hidden = true; return; }
   const platform = AppData.getPlatform(suggestion.id);
@@ -72,6 +102,188 @@ function renderMotivation() {
     sessionStorage.setItem('streakforce-motivation-dismissed', todayISO());
     banner.hidden = true;
   });
+}
+
+async function initializeSmartNotifications() {
+  const profileId = AppData.profile?.id || 'local';
+  const key = `${profileId}:${todayISO()}`;
+  if (notificationInitKey === key || notificationInitPromise) return notificationInitPromise;
+  notificationInitPromise = (async () => {
+    const settings = { ...(AppData.state.settings || {}) };
+    const items = [...(settings.notificationHistory || [])];
+    const today = todayISO();
+    let changed = false;
+    const quoteAlreadyAdded = items.some(item => item.kind === 'motivation' && item.date === today);
+    if (settings.motivationEnabled !== false && settings.notificationsEnabled !== false && !quoteAlreadyAdded) {
+      let history = [...(settings.quoteHistory || [])];
+      let used = new Set(history.map(item => item.quote));
+      if (used.size >= MOTIVATION_QUOTES.length) {
+        used = new Set(history.length ? [history[history.length - 1].quote] : []);
+        history = history.slice(-1);
+      }
+      const available = MOTIVATION_QUOTES.filter(quote => !used.has(quote));
+      const quote = available[Math.floor(Math.random() * available.length)] || MOTIVATION_QUOTES[0];
+      history.push({ date: today, quote });
+      settings.quoteHistory = history.slice(-100);
+      items.push({ id: `${today}:motivation`, kind: 'motivation', title: 'A thought for today', message: quote, date: today, createdAt: new Date().toISOString(), read: false, status: 'delivered' });
+      changed = true;
+    }
+
+    const platforms = AppData.getPlatforms();
+    if (!items.some(item => item.kind === 'streak' && item.date === today)) {
+      const atRisk = platforms.find(platform => !platform.frozen && getPlatformStats(platform).activeDays > 0 && ['yellow', 'red'].includes(getPlatformStats(platform).status));
+      if (atRisk) {
+        const status = getPlatformStats(atRisk).status;
+        items.push({ id: `${today}:streak:${atRisk.id}`, kind: 'streak', platformId: atRisk.id, title: `${atRisk.name} streak ${status === 'yellow' ? 'at risk' : 'needs a restart'}`, message: status === 'yellow' ? `A short ${atRisk.name} session today can protect your rhythm.` : `Return to ${atRisk.name} when you are ready to build a new streak.`, date: today, createdAt: new Date().toISOString(), read: false, status: 'delivered' });
+        changed = true;
+      }
+    }
+    platforms.filter(platform => platform.username && platform.syncStatus === 'error').forEach(platform => {
+      if (items.some(item => item.kind === 'update' && item.platformId === platform.id && item.date === today)) return;
+      items.push({ id: `${today}:sync:${platform.id}`, kind: 'update', platformId: platform.id, title: `${platform.name} sync needs attention`, message: platform.syncError || 'The latest public profile sync did not complete.', date: today, createdAt: new Date().toISOString(), read: false, status: 'delivered' });
+      changed = true;
+    });
+    const existingToday = new Set(items.filter(item => item.date === today && item.kind === 'platform').map(item => item.platformId));
+    if (settings.platformRemindersEnabled !== false && settings.remindersEnabled !== false) {
+      const [hour, minute] = String(settings.reminderTime || '19:00').split(':').map(Number);
+      const start = new Date();
+      start.setHours(hour || 0, minute || 0, 0, 0);
+      const gap = Math.max(2, Math.min(5, Number(settings.reminderGapMinutes) || 3));
+      platforms.filter(platform => !platform.frozen && platformAmount(platform, today) <= 0 && !existingToday.has(platform.id)).forEach((platform, index) => {
+        const scheduled = new Date(start.getTime() + index * gap * 60000);
+        items.push({ id: `${today}:platform:${platform.id}`, kind: 'platform', platformId: platform.id, title: `${platform.name} practice`, message: PLATFORM_REMINDERS[platform.id], date: today, scheduledFor: scheduled.toISOString(), read: false, status: 'pending' });
+        changed = true;
+      });
+    }
+
+    items.forEach(item => {
+      if (item.kind !== 'platform' || item.status !== 'pending') return;
+      const platform = AppData.getPlatform(item.platformId);
+      if (settings.platformRemindersEnabled === false || settings.remindersEnabled === false || !platform || platform.frozen || platformAmount(platform, today) > 0) {
+        item.status = 'skipped';
+        changed = true;
+      }
+    });
+    settings.notificationHistory = items.slice(-80);
+    if (changed) await AppData.saveSettings(settings);
+    notificationInitKey = key;
+    updateNotificationBell();
+    if (!notificationTimer) notificationTimer = window.setInterval(processScheduledNotifications, 30000);
+  })();
+  try { await notificationInitPromise; }
+  finally { notificationInitPromise = null; }
+}
+
+async function resetSmartNotifications() {
+  notificationInitKey = '';
+  const settings = AppData.state.settings || {};
+  const history = (settings.notificationHistory || []).filter(item => !(item.kind === 'platform' && item.status === 'pending' && item.date === todayISO()));
+  if (history.length !== (settings.notificationHistory || []).length) {
+    await AppData.saveSettings({ ...settings, notificationHistory: history });
+  }
+  await initializeSmartNotifications();
+}
+
+async function refreshPendingNotifications() {
+  if (pendingRefreshPromise) return pendingRefreshPromise;
+  const settings = AppData.state.settings || {};
+  const history = [...(settings.notificationHistory || [])];
+  let changed = false;
+  history.forEach(item => {
+    if (item.kind !== 'platform' || item.status !== 'pending') return;
+    const platform = AppData.getPlatform(item.platformId);
+    if (!platform || platform.frozen || platformAmount(platform, todayISO()) > 0 || settings.platformRemindersEnabled === false || settings.remindersEnabled === false) {
+      item.status = 'skipped';
+      changed = true;
+    }
+  });
+  if (!changed) return;
+  pendingRefreshPromise = AppData.saveSettings({ ...settings, notificationHistory: history })
+    .then(updateNotificationBell)
+    .catch(error => console.error('Could not refresh pending reminders:', error))
+    .finally(() => { pendingRefreshPromise = null; });
+  return pendingRefreshPromise;
+}
+
+async function processScheduledNotifications() {
+  if (notificationProcessing) return;
+  notificationProcessing = true;
+  try {
+    const settings = AppData.state.settings || {};
+    if (settings.platformRemindersEnabled === false || settings.remindersEnabled === false) return;
+    const items = [...(settings.notificationHistory || [])];
+    const now = Date.now();
+    const due = items.filter(item => item.kind === 'platform' && item.status === 'pending' && Date.parse(item.scheduledFor) <= now).sort((a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor));
+    const item = due[0];
+    if (!item) return;
+    const platform = AppData.getPlatform(item.platformId);
+    if (!platform || platform.frozen || platformAmount(platform, todayISO()) > 0) {
+      item.status = 'skipped';
+      await AppData.saveSettings({ ...settings, notificationHistory: items });
+      updateNotificationBell();
+      return;
+    }
+    const gap = Math.max(2, Math.min(5, Number(settings.reminderGapMinutes) || 3)) * 60000;
+    const lastDelivery = items.filter(entry => entry.kind === 'platform' && entry.deliveredAt).reduce((latest, entry) => Math.max(latest, Date.parse(entry.deliveredAt)), 0);
+    if (lastDelivery && now - lastDelivery < gap) return;
+    item.status = 'delivered';
+    item.deliveredAt = new Date().toISOString();
+    if (settings.browserNotificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(item.title, { body: item.message, tag: item.id });
+    }
+    await AppData.saveSettings({ ...settings, notificationHistory: items });
+    updateNotificationBell();
+    if (document.visibilityState === 'visible') showToast(`${item.title}: ${item.message}`);
+  } catch (error) {
+    console.error('Reminder delivery failed:', error);
+  } finally {
+    notificationProcessing = false;
+  }
+}
+
+function updateNotificationBell() {
+  const count = document.getElementById('notification-count');
+  if (!count) return;
+  const items = AppData.state.settings?.notificationHistory || [];
+  const unread = items.filter(item => item.status === 'pending' || (item.status === 'delivered' && !item.read)).length;
+  count.textContent = unread > 9 ? '9+' : String(unread);
+  count.hidden = unread === 0;
+  renderNotificationPanel();
+}
+
+function renderNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+  if (!panel) return;
+  const items = [...(AppData.state.settings?.notificationHistory || [])]
+    .filter(item => item.status === 'pending' || item.status === 'delivered')
+    .sort((a, b) => a.status === 'pending' && b.status !== 'pending' ? -1 : b.status === 'pending' && a.status !== 'pending' ? 1 : Date.parse(b.deliveredAt || b.createdAt || b.scheduledFor) - Date.parse(a.deliveredAt || a.createdAt || a.scheduledFor));
+  panel.innerHTML = `<div class="notification-panel-heading"><strong>Notifications</strong><button type="button" class="notification-close" aria-label="Close notifications">×</button></div>${items.length ? `<div class="notification-list">${items.slice(0, 12).map(item => `<article class="notification-item ${item.status === 'pending' ? 'is-pending' : ''}"><span class="notification-item-icon">${item.kind === 'motivation' ? '✳' : item.kind === 'streak' ? '🔥' : item.status === 'pending' ? '◷' : (AppData.getPlatform(item.platformId)?.icon || '•')}</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.message)}</p><small>${item.status === 'pending' ? `Scheduled ${new Date(item.scheduledFor).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : item.kind === 'motivation' ? 'Daily thought' : item.kind === 'streak' ? 'Streak alert' : item.kind === 'update' ? 'Important update' : 'Platform reminder'}</small></div></article>`).join('')}</div>` : '<div class="notification-empty"><strong>You are all caught up.</strong><p>New reminders and learning notes will appear here.</p></div>'}`;
+  panel.querySelector('.notification-close')?.addEventListener('click', closeNotificationPanel);
+}
+
+async function openNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+  const button = document.getElementById('btn-notifications');
+  if (!panel || !button) return;
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  button.setAttribute('aria-expanded', String(opening));
+  if (!opening) return;
+  const settings = AppData.state.settings || {};
+  const history = [...(settings.notificationHistory || [])];
+  let changed = false;
+  history.forEach(item => {
+    if (item.status === 'delivered' && !item.read) { item.read = true; changed = true; }
+  });
+  if (changed) await AppData.saveSettings({ ...settings, notificationHistory: history });
+  updateNotificationBell();
+}
+
+function closeNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+  const button = document.getElementById('btn-notifications');
+  if (panel) panel.hidden = true;
+  button?.setAttribute('aria-expanded', 'false');
 }
 
 function platformPeriodTotal(platform, startDate) {

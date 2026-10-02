@@ -13,8 +13,12 @@ const CODING_PLATFORMS = new Set(['leetcode', 'codechef', 'codeforces', 'atcoder
 const MANUAL_PLATFORMS = new Set(['codechef', 'speakits', 'duolingo', 'dsa-ideas']);
 const DEFAULT_SETTINGS = {
   remindersEnabled: true,
+  platformRemindersEnabled: true,
+  motivationEnabled: true,
   reminderTime: '19:00',
+  reminderGapMinutes: 3,
   notificationsEnabled: true,
+  browserNotificationsEnabled: false,
   animations: true,
   theme: 'system',
   autoSync: true
@@ -28,6 +32,7 @@ if (profileTable?.sql.includes('CHECK (id = 1)')) {
   db.exec(`CREATE TABLE profiles_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE,
+    name TEXT NOT NULL DEFAULT '',
     password_salt TEXT,
     password_hash TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -103,6 +108,9 @@ db.exec(`
   );
 `);
 
+try { db.exec("ALTER TABLE profiles ADD COLUMN name TEXT NOT NULL DEFAULT ''"); }
+catch (error) { if (!String(error.message).includes('duplicate column name')) throw error; }
+
 for (const [table, column, definition] of [
   ['platform_connections', 'stats_json', "TEXT NOT NULL DEFAULT '{}'"],
   ['platform_connections', 'category', "TEXT NOT NULL DEFAULT 'coding'"]
@@ -125,21 +133,21 @@ function tokenHash(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function setSessionCookie(res, token) {
+function setSessionCookie(res, token, remember = false) {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
+    ...(remember ? { maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 } : {}),
     path: '/'
   });
 }
 
-function createSession(profileId, res) {
+function createSession(profileId, res, remember = false) {
   const token = crypto.randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
   db.prepare('INSERT INTO sessions (token_hash, profile_id, expires_at) VALUES (?, ?, ?)').run(tokenHash(token), profileId, expiresAt);
-  setSessionCookie(res, token);
+  setSessionCookie(res, token, remember);
 }
 
 function currentProfile(req) {
@@ -149,7 +157,7 @@ function currentProfile(req) {
   }));
   const token = cookies[SESSION_COOKIE];
   if (!token) return null;
-  const session = db.prepare(`SELECT profiles.id, profiles.email FROM sessions
+  const session = db.prepare(`SELECT profiles.id, profiles.email, profiles.name FROM sessions
     JOIN profiles ON profiles.id = sessions.profile_id
     WHERE sessions.token_hash = ? AND sessions.expires_at > ?`).get(tokenHash(token), new Date().toISOString());
   return session || null;
@@ -311,12 +319,15 @@ app.use(express.static(__dirname));
 
 app.get('/api/auth/session', (req, res) => {
   const profile = currentProfile(req);
-  res.json({ authenticated: Boolean(profile), profile: profile ? { id: profile.id, email: profile.email } : null });
+  res.json({ authenticated: Boolean(profile), profile: profile ? { id: profile.id, email: profile.email, name: profile.name } : null });
 });
 
 app.post('/api/auth/register', (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
+  const name = String(req.body?.name || '').trim().slice(0, 80);
   const password = String(req.body?.password || '');
+  const remember = req.body?.remember === true;
+  if (!name) return res.status(400).json({ error: 'Enter your name.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
   if (password.length < 10) return res.status(400).json({ error: 'Use a password with at least 10 characters.' });
   if (db.prepare('SELECT id FROM profiles WHERE email = ?').get(email)) return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.' });
@@ -325,25 +336,28 @@ app.post('/api/auth/register', (req, res) => {
   let profileId;
   if (legacy) {
     profileId = legacy.id;
-    db.prepare('UPDATE profiles SET email = ?, password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(email, salt, hashPassword(password, salt), profileId);
+    db.prepare('UPDATE profiles SET email = ?, name = ?, password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(email, name, salt, hashPassword(password, salt), profileId);
   } else {
-    const result = db.prepare('INSERT INTO profiles (email, password_salt, password_hash) VALUES (?, ?, ?)').run(email, salt, hashPassword(password, salt));
+    const result = db.prepare('INSERT INTO profiles (email, name, password_salt, password_hash) VALUES (?, ?, ?, ?)').run(email, name, salt, hashPassword(password, salt));
     profileId = Number(result.lastInsertRowid);
   }
   db.prepare('INSERT OR IGNORE INTO settings (profile_id, data_json) VALUES (?, ?)').run(profileId, JSON.stringify(DEFAULT_SETTINGS));
-  createSession(profileId, res);
-  res.status(201).json({ profile: { id: profileId, email } });
+  createSession(profileId, res, remember);
+  res.status(201).json({ profile: { id: profileId, email, name } });
 });
 
 app.post('/api/auth/login', (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase();
+  const identifier = String(req.body?.email || '').trim();
   const password = String(req.body?.password || '');
-  const profile = db.prepare('SELECT id, email, password_salt, password_hash FROM profiles WHERE email = ?').get(email);
+  const remember = req.body?.remember === true;
+  const profile = /^\d+$/.test(identifier)
+    ? db.prepare('SELECT id, email, name, password_salt, password_hash FROM profiles WHERE id = ?').get(Number(identifier))
+    : db.prepare('SELECT id, email, name, password_salt, password_hash FROM profiles WHERE email = ?').get(identifier.toLowerCase());
   if (!profile?.password_hash || !profile.password_salt || !crypto.timingSafeEqual(Buffer.from(hashPassword(password, profile.password_salt), 'hex'), Buffer.from(profile.password_hash, 'hex'))) {
     return res.status(401).json({ error: 'Email or password is incorrect.' });
   }
-  createSession(profile.id, res);
-  res.json({ profile: { id: profile.id, email: profile.email } });
+  createSession(profile.id, res, remember);
+  res.json({ profile: { id: profile.id, email: profile.email, name: profile.name } });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -357,6 +371,26 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+app.put('/api/profile', requireAuth, (req, res) => {
+  const name = String(req.body?.name || '').trim().slice(0, 80);
+  if (!name) return res.status(400).json({ error: 'Enter your name.' });
+  db.prepare('UPDATE profiles SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(name, req.profile.id);
+  res.json({ profile: { id: req.profile.id, email: req.profile.email, name } });
+});
+
+app.post('/api/auth/password', requireAuth, (req, res) => {
+  const currentPassword = String(req.body?.currentPassword || '');
+  const newPassword = String(req.body?.newPassword || '');
+  if (newPassword.length < 10) return res.status(400).json({ error: 'Use a password with at least 10 characters.' });
+  const profile = db.prepare('SELECT password_salt, password_hash FROM profiles WHERE id = ?').get(req.profile.id);
+  const submittedHash = Buffer.from(hashPassword(currentPassword, profile.password_salt), 'hex');
+  const storedHash = Buffer.from(profile.password_hash, 'hex');
+  if (!crypto.timingSafeEqual(submittedHash, storedHash)) return res.status(401).json({ error: 'Current password is incorrect.' });
+  const salt = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE profiles SET password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(salt, hashPassword(newPassword, salt), req.profile.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/state', requireAuth, (req, res) => {
   const profileId = req.profile.id;
   const settingsRow = db.prepare('SELECT data_json FROM settings WHERE profile_id = ?').get(profileId);
@@ -366,7 +400,7 @@ app.get('/api/state', requireAuth, (req, res) => {
   }));
   const manualActivities = db.prepare('SELECT platform_id, activity_date AS date, amount, note FROM manual_activities WHERE profile_id = ? ORDER BY activity_date DESC').all(profileId);
   res.json({
-    profile: { id: req.profile.id, email: req.profile.email },
+    profile: { id: req.profile.id, email: req.profile.email, name: req.profile.name },
     connections,
     activities: getActivities(profileId),
     manualActivities,

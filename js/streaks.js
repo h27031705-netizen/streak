@@ -72,6 +72,28 @@ function getPlatformStats(platform) {
   const log = platform.activityLog || [];
   const manual = AppData.state.manualActivities.filter(entry => entry.platform_id === platform.id);
   const dates = [...new Set([...log.map(entry => entry.date), ...manual.map(entry => entry.date)])].filter(date => date <= todayISO()).sort();
+  const freezeRanges = AppData.state.settings.platformFreezeHistory?.[platform.id] || [];
+  const isFrozenDate = date => freezeRanges.some(range => date >= range.from && (!range.to || date <= range.to));
+  const unfrozenDaysBetween = (start, end) => {
+    let count = 0;
+    const date = new Date(`${start}T00:00:00Z`);
+    const endDate = new Date(`${end}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + 1);
+    while (date <= endDate) {
+      const iso = date.toISOString().slice(0, 10);
+      if (!isFrozenDate(iso)) count++;
+      date.setUTCDate(date.getUTCDate() + 1);
+    }
+    return count;
+  };
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let runningStreak = 0;
+  dates.forEach((date, index) => {
+    runningStreak = index && unfrozenDaysBetween(dates[index - 1], date) === 0 ? runningStreak + 1 : 1;
+    longestStreak = Math.max(longestStreak, runningStreak);
+  });
+  if (dates.length && unfrozenDaysBetween(dates[dates.length - 1], todayISO()) <= 1) currentStreak = runningStreak;
   const topicCounts = {};
   log.forEach(entry => (entry.topics || []).forEach(topic => {
     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
@@ -91,10 +113,11 @@ function getPlatformStats(platform) {
     return age >= 0 && age <= 6;
   }).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
 
+  const missedDays = dates.length ? unfrozenDaysBetween(dates[dates.length - 1], todayISO()) : 0;
   return {
-    status: getStreakStatus(activeLog),
-    currentStreak: calculateCurrentStreak(activeLog),
-    longestStreak: calculateLongestStreak(activeLog),
+    status: platform.frozen ? 'frozen' : !dates.length ? 'red' : missedDays <= 1 ? 'green' : missedDays <= 3 ? 'yellow' : 'red',
+    currentStreak,
+    longestStreak,
     total,
     totalProblems: category === 'coding' ? total : 0,
     totalSessions: category === 'session' ? total : 0,
@@ -118,6 +141,7 @@ function getStatusMeta(status) {
     case 'green': return { emoji: '🟢', label: 'On fire' };
     case 'yellow': return { emoji: '🟡', label: '1 day missed' };
     case 'red': return { emoji: '🔴', label: 'Streak broken' };
+    case 'frozen': return { emoji: '❄️', label: 'Frozen' };
     default: return { emoji: '⚪', label: 'No data' };
   }
 }

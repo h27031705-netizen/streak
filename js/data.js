@@ -11,7 +11,7 @@ const PLATFORM_DEFINITIONS = [
 function createEmptyState() {
   return {
     profile: null,
-    platforms: PLATFORM_DEFINITIONS.map(platform => ({ ...platform, username: '', profileUrl: '', activityLog: [], stats: {}, syncStatus: 'never' })),
+    platforms: PLATFORM_DEFINITIONS.map(platform => ({ ...platform, username: '', profileUrl: '', activityLog: [], stats: {}, syncStatus: 'never', frozen: false })),
     manualActivities: [],
     settings: {}
   };
@@ -48,10 +48,10 @@ const AppData = {
     return this.profile;
   },
 
-  async authenticate(mode, email, password) {
+  async authenticate(mode, credentials) {
     const result = await apiRequest(`/api/auth/${mode}`, {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify(credentials)
     });
     this.profile = result.profile;
     await this.hydrate();
@@ -74,6 +74,8 @@ const AppData = {
       this.state.profile = remote.profile;
       this.state.settings = remote.settings || {};
       this.state.manualActivities = remote.manualActivities || [];
+      const frozenPlatforms = new Set(this.state.settings.frozenPlatforms || []);
+      this.state.platforms.forEach(platform => { platform.frozen = frozenPlatforms.has(platform.id); });
 
       remote.connections.forEach(connection => {
         const platform = this.getPlatform(connection.platform_id);
@@ -139,8 +141,15 @@ const AppData = {
   },
 
   async syncPlatform(platformId) {
-    const result = await apiRequest(`/api/platforms/${encodeURIComponent(platformId)}/sync`, { method: 'POST' });
     const platform = this.getPlatform(platformId);
+    let result;
+    try {
+      result = await apiRequest(`/api/platforms/${encodeURIComponent(platformId)}/sync`, { method: 'POST' });
+    } catch (error) {
+      if (platform) { platform.syncStatus = 'error'; platform.syncError = error.message; }
+      if (typeof resetSmartNotifications === 'function') resetSmartNotifications().catch(() => {});
+      throw error;
+    }
     if (platform) {
       platform.activityLog = result.activityLog || [];
       platform.stats = result.stats || {};
@@ -150,6 +159,12 @@ const AppData = {
     }
     if (activeScreen === 'screen-dashboard') renderDashboardCards();
     return result;
+  },
+
+  async disconnectPlatform(platformId) {
+    await apiRequest(`/api/platforms/${encodeURIComponent(platformId)}`, { method: 'DELETE' });
+    const platform = this.getPlatform(platformId);
+    if (platform) Object.assign(platform, { username: '', profileUrl: '', lastSyncedAt: null, syncStatus: 'never', syncError: null, stats: {} });
   },
 
   async saveManualActivity(entry) {
@@ -166,6 +181,38 @@ const AppData = {
 
   async saveSettings(settings) {
     this.state.settings = await apiRequest('/api/settings', { method: 'PUT', body: JSON.stringify(settings) });
+    const frozenPlatforms = new Set(this.state.settings.frozenPlatforms || []);
+    this.state.platforms.forEach(platform => { platform.frozen = frozenPlatforms.has(platform.id); });
     return this.state.settings;
+  },
+
+  async saveProfile(name) {
+    const result = await apiRequest('/api/profile', { method: 'PUT', body: JSON.stringify({ name }) });
+    this.profile = result.profile;
+    this.state.profile = result.profile;
+    return result.profile;
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    return apiRequest('/api/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+  },
+
+  async setPlatformFrozen(platformId, frozen) {
+    const settings = { ...(this.state.settings || {}) };
+    const frozenPlatforms = new Set(settings.frozenPlatforms || []);
+    const freezeHistory = { ...(settings.platformFreezeHistory || {}) };
+    const ranges = [...(freezeHistory[platformId] || [])];
+    if (frozen) {
+      frozenPlatforms.add(platformId);
+      if (!ranges.some(range => !range.to)) ranges.push({ from: todayISO(), to: null });
+    } else {
+      frozenPlatforms.delete(platformId);
+      const openRange = ranges.findLast ? ranges.findLast(range => !range.to) : [...ranges].reverse().find(range => !range.to);
+      if (openRange) openRange.to = todayISO();
+    }
+    settings.frozenPlatforms = [...frozenPlatforms];
+    freezeHistory[platformId] = ranges;
+    settings.platformFreezeHistory = freezeHistory;
+    await this.saveSettings(settings);
   }
 };
