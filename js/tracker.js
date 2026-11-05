@@ -6,6 +6,16 @@ let notificationTimer = null;
 let notificationProcessing = false;
 let pendingRefreshPromise = null;
 const MANUAL_TRACKING_IDS = ['speakits', 'duolingo', 'dsa-ideas'];
+function isManualActivityPlatform(platformOrId) {
+  const platformId = typeof platformOrId === 'string' ? platformOrId : platformOrId?.id;
+  const platform = typeof platformOrId === 'string' ? AppData.getPlatform(platformOrId) : platformOrId;
+  return MANUAL_PLATFORM_IDS.includes(platformId) || Boolean(platform?.customItemId);
+}
+
+function isManualTrackingPlatform(platform) {
+  return MANUAL_TRACKING_IDS.includes(platform.id) || Boolean(platform.customItemId);
+}
+
 const MOTIVATION_QUOTES = [
   'One good book can change your thinking today.',
   'Small, steady practice makes difficult things familiar.',
@@ -45,16 +55,18 @@ function renderDashboardSummary() {
   AppData.getPlatforms().forEach(platform => {
     const stats = getPlatformStats(platform);
     const value = stats.total;
-    const detail = platform.id === 'speakits'
-      ? 'sessions completed'
-      : platform.id === 'duolingo'
-        ? 'XP recorded'
-        : platform.id === 'dsa-ideas'
-          ? 'ideas captured'
-          : 'problems solved';
+    const detail = platform.customItemId
+      ? `${escapeHtml(platform.itemType)} activities`
+      : platform.id === 'speakits'
+        ? 'sessions completed'
+        : platform.id === 'duolingo'
+          ? 'XP recorded'
+          : platform.id === 'dsa-ideas'
+            ? 'ideas captured'
+            : 'problems solved';
     const tile = el('article', 'summary-tile');
     tile.style.setProperty('--tile-color', platform.color);
-    tile.innerHTML = `<span class="summary-icon">${platform.icon}</span><span class="summary-name">${platform.name}</span><strong>${animationsEnabled() ? '0' : value.toLocaleString()}</strong><small>${detail}</small>`;
+    tile.innerHTML = `<span class="summary-icon">${platform.icon}</span><span class="summary-name">${escapeHtml(platform.name)}</span><strong>${animationsEnabled() ? '0' : value.toLocaleString()}</strong><small>${detail}</small>`;
     if (animationsEnabled()) animateCounter(tile.querySelector('strong'), value);
     tile.addEventListener('click', () => openPlatformDetail(platform.id));
     summary.appendChild(tile);
@@ -151,7 +163,7 @@ async function initializeSmartNotifications() {
       const gap = Math.max(2, Math.min(5, Number(settings.reminderGapMinutes) || 3));
       platforms.filter(platform => !platform.frozen && platformAmount(platform, today) <= 0 && !existingToday.has(platform.id)).forEach((platform, index) => {
         const scheduled = new Date(start.getTime() + index * gap * 60000);
-        items.push({ id: `${today}:platform:${platform.id}`, kind: 'platform', platformId: platform.id, title: `${platform.name} practice`, message: PLATFORM_REMINDERS[platform.id], date: today, scheduledFor: scheduled.toISOString(), read: false, status: 'pending' });
+        items.push({ id: `${today}:platform:${platform.id}`, kind: 'platform', platformId: platform.id, title: `${platform.name} practice`, message: PLATFORM_REMINDERS[platform.id] || `Take one small step with ${platform.name} today.`, date: today, scheduledFor: scheduled.toISOString(), read: false, status: 'pending' });
         changed = true;
       });
     }
@@ -307,8 +319,9 @@ function renderPeriodSummary() {
   const platforms = AppData.getPlatforms();
   container.innerHTML = periods.map(period => {
     const dateSet = new Set();
-    const totals = { coding: 0, session: 0, language: 0, ideas: 0 };
+    const totals = { coding: 0, session: 0, language: 0, ideas: 0, custom: 0 };
     const activeTracks = new Set();
+    let additionalEventCount = 0;
     platforms.forEach(platform => {
       const dates = new Set([
         ...platform.activityLog.map(entry => entry.date),
@@ -319,14 +332,23 @@ function renderPeriodSummary() {
         if (!amount) return;
         dateSet.add(date);
         activeTracks.add(platform.id);
-        totals[platform.category] += amount;
+        if (Object.prototype.hasOwnProperty.call(totals, platform.category)) totals[platform.category] += amount;
       });
+    });
+    (AppData.state.activityHistory || []).filter(event =>
+      ['custom-activity', 'project-task', 'goal-progress'].includes(event.type) && event.completed !== false && event.date >= period.start && event.date <= today
+    ).forEach(event => {
+      dateSet.add(event.date);
+      activeTracks.add(event.sourceId || event.id);
+      additionalEventCount++;
     });
     const metrics = [
       totals.coding ? `${totals.coding.toLocaleString()} problems` : '',
       totals.session ? `${totals.session} ${totals.session === 1 ? 'session' : 'sessions'}` : '',
       totals.language ? `${totals.language.toLocaleString()} XP` : '',
-      totals.ideas ? `${totals.ideas.toLocaleString()} ${totals.ideas === 1 ? 'idea' : 'ideas'}` : ''
+      totals.ideas ? `${totals.ideas.toLocaleString()} ${totals.ideas === 1 ? 'idea' : 'ideas'}` : '',
+      totals.custom ? `${totals.custom.toLocaleString()} custom track activities` : '',
+      additionalEventCount ? `${additionalEventCount} activity/project/goal events` : ''
     ].filter(Boolean);
     return `<article class="period-tile"><div class="period-tile-head"><h3>${period.label}</h3><span>${dateSet.size} active ${dateSet.size === 1 ? 'day' : 'days'}</span></div><strong>${activeTracks.size} <small>tracks</small></strong><p>${metrics.length ? metrics.join(' · ') : 'No activity logged'}</p></article>`;
   }).join('');
@@ -373,15 +395,15 @@ function renderDateTracker() {
     const cells = platforms.map((platform, index) => {
       const value = values[index];
       const display = value > 0 ? (platform.id === 'duolingo' ? `${value} XP` : value) : '·';
-      const canLog = MANUAL_PLATFORM_IDS.includes(platform.id);
-      return `<td class="${value ? 'has-value' : 'is-empty'}">${canLog ? `<button type="button" class="tracker-cell" data-entry-platform="${platform.id}" data-entry-date="${date}" aria-label="Log ${platform.name} for ${date}">${display}</button>` : `<span>${display}</span>`}</td>`;
+      const canLog = isManualActivityPlatform(platform);
+      return `<td class="${value ? 'has-value' : 'is-empty'}">${canLog ? `<button type="button" class="tracker-cell" data-entry-platform="${escapeHtml(platform.id)}" data-entry-date="${date}" aria-label="Log ${escapeHtml(platform.name)} for ${date}">${display}</button>` : `<span>${display}</span>`}</td>`;
     }).join('');
     rows.push(`<tr class="${active ? 'has-activity' : ''}"><th scope="row"><time datetime="${date}">${formatDateLabel(date)}</time><small>${new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short' })}</small></th>${cells}<td class="day-summary"><span>${active ? `${active} active` : '—'}</span><small>${totalText}</small></td></tr>`);
   }
 
   const dateLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   container.innerHTML = `<div class="tracker-meta"><span>${dateLabel}</span><span>${activeDates} active day${activeDates === 1 ? '' : 's'} · ${monthProblems} coding problems</span></div>
-    <div class="tracker-table-scroll"><table class="tracker-table"><thead><tr><th scope="col">Date</th>${platforms.map(platform => `<th scope="col"><span title="${platform.name}">${platform.icon}</span><small>${platform.name}</small></th>`).join('')}<th scope="col">Daily activity</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+    <div class="tracker-table-scroll"><table class="tracker-table"><thead><tr><th scope="col">Date</th>${platforms.map(platform => `<th scope="col"><span title="${escapeHtml(platform.name)}">${platform.icon}</span><small>${escapeHtml(platform.name)}</small></th>`).join('')}<th scope="col">Daily activity</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
     <p class="tracker-footnote">CodeChef lifetime total syncs automatically; dated CodeChef rows are optional manual entries. LeetCode, Codeforces, and AtCoder import available accepted submissions.</p>`;
   container.querySelectorAll('[data-entry-platform]').forEach(button => button.addEventListener('click', () => openActivityDialog(button.dataset.entryPlatform, button.dataset.entryDate)));
 }
@@ -392,11 +414,11 @@ function openActivityDialog(platformId = 'speakits', date = todayISO()) {
   const select = document.getElementById('entry-platform');
   const amountWrap = document.getElementById('entry-amount-wrap');
   const note = document.getElementById('entry-note');
-  select.innerHTML = MANUAL_PLATFORM_IDS.map(id => {
-    const platform = AppData.getPlatform(id);
-    return `<option value="${id}">${platform.icon} ${platform.name}</option>`;
+  const manualPlatforms = AppData.getPlatforms().filter(isManualActivityPlatform);
+  select.innerHTML = manualPlatforms.map(platform => {
+    return `<option value="${escapeHtml(platform.id)}">${platform.icon} ${escapeHtml(platform.name)}</option>`;
   }).join('');
-  select.value = MANUAL_PLATFORM_IDS.includes(platformId) ? platformId : 'speakits';
+  select.value = isManualActivityPlatform(platformId) ? platformId : 'speakits';
   const dateInput = document.getElementById('entry-date');
   dateInput.value = date || todayISO();
   dateInput.max = todayISO();
@@ -420,7 +442,8 @@ function openActivityDialog(platformId = 'speakits', date = todayISO()) {
         note: note.value.trim()
       });
       dialog.close();
-      showToast(selectedPlatform === 'speakits' ? 'Speakits session recorded.' : selectedPlatform === 'dsa-ideas' ? 'DSA progress saved.' : selectedPlatform === 'duolingo' ? 'Duolingo XP saved.' : 'CodeChef count saved.');
+      const selected = AppData.getPlatform(selectedPlatform);
+      showToast(selectedPlatform === 'speakits' ? 'Speakits session recorded.' : selectedPlatform === 'dsa-ideas' ? 'DSA progress saved.' : selectedPlatform === 'duolingo' ? 'Duolingo XP saved.' : selected?.customItemId ? `${selected.name} activity saved.` : 'CodeChef count saved.');
       renderDashboardCards();
       renderDateTracker();
       renderDashboardChart();
@@ -442,6 +465,7 @@ function updateEntryFields() {
   const platform = AppData.getPlatform(document.getElementById('entry-platform').value);
   if (!platform) return;
   const isSpeakits = platform.id === 'speakits';
+  const isCustom = Boolean(platform.customItemId);
   const amountWrap = document.getElementById('entry-amount-wrap');
   const amountLabel = document.getElementById('entry-amount-label');
   const amountInput = document.getElementById('entry-amount');
@@ -454,12 +478,14 @@ function updateEntryFields() {
   noteInput.value = isSpeakits ? '' : (existing?.note || '');
   noteLabel.hidden = isSpeakits;
   noteInput.hidden = isSpeakits;
-  amountLabel.textContent = platform.id === 'duolingo' ? 'XP earned' : platform.id === 'dsa-ideas' ? 'Ideas worked on' : 'Problems solved';
+  amountLabel.textContent = isCustom ? 'Activities completed' : platform.id === 'duolingo' ? 'XP earned' : platform.id === 'dsa-ideas' ? 'Ideas worked on' : 'Problems solved';
   amountInput.value = existing?.amount ?? 1;
   amountInput.step = platform.id === 'duolingo' ? '1' : '1';
   amountInput.min = platform.id === 'speakits' ? '1' : '0';
   amountWrap.hidden = isSpeakits;
-  help.textContent = isSpeakits
+  help.textContent = isCustom
+    ? `Record progress for ${platform.name}; add an optional note for context.`
+    : isSpeakits
     ? 'One completed Speakits session will be recorded for this date.'
     : platform.id === 'duolingo'
       ? 'Duolingo does not offer a supported public progress API. Record XP manually.'
@@ -472,32 +498,79 @@ function renderDashboardChart() {
   const canvas = document.getElementById('dashboard-chart');
   if (!canvas || typeof Chart === 'undefined') return;
   if (dashboardChart) dashboardChart.destroy();
+  const monthInput = document.getElementById('tracker-month');
+  const selectedMonth = monthInput?.value || monthKey();
+  const [year, month] = selectedMonth.split('-').map(Number);
+  if (!year || !month) return;
+  const daysInMonth = new Date(year, month, 0).getDate();
   const labels = [];
-  const codingValues = [];
-  const learningValues = [];
-  for (let day = 29; day >= 0; day--) {
-    const date = daysAgoISO(day);
+  const activityCounts = [];
+  const activityHistory = AppData.state.activityHistory || [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = `${selectedMonth}-${String(day).padStart(2, '0')}`;
     labels.push(new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    const platforms = AppData.getPlatforms();
-    codingValues.push(platforms.filter(platform => platform.category === 'coding').reduce((sum, platform) => sum + platformAmount(platform, date), 0));
-    learningValues.push(platforms.filter(platform => platform.category !== 'coding').reduce((sum, platform) => sum + (platformAmount(platform, date) > 0 ? 1 : 0), 0));
+    activityCounts.push(activityHistory.filter(event =>
+      event.date === date && event.completed !== false
+    ).length);
   }
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text-muted').trim() || '#718096';
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#E5EBF4';
+  const lineColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-dark').trim() || '#1551C8';
+  const periodLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const periodElement = document.getElementById('monthly-activity-period');
+  if (periodElement) periodElement.textContent = `${periodLabel} · recorded activities`;
+  canvas.setAttribute('aria-label', `Daily completed activity count for ${periodLabel}`);
+
   dashboardChart = new Chart(canvas, {
     type: 'line',
-    data: { labels, datasets: [
-      { label: 'Coding problems', data: codingValues, borderColor: '#3678D4', backgroundColor: '#3678D422', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
-      { label: 'Learning tracks active', data: learningValues, yAxisID: 'y1', borderColor: '#D98269', backgroundColor: '#D9826918', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }
-    ] },
+    data: { labels, datasets: [{
+      label: 'Recorded activities',
+      data: activityCounts,
+      borderColor: lineColor,
+      backgroundColor: lineColor,
+      fill: false,
+      tension: 0.15,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      pointHitRadius: 10,
+      borderWidth: 2.5
+    }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: animationsEnabled() ? 650 : 0 },
       interaction: { intersect: false, mode: 'index' },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 7 } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title(items) {
+              const day = items[0]?.dataIndex + 1;
+              return `${new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+            },
+            label(context) {
+              const count = context.parsed.y;
+              return `${count} recorded ${count === 1 ? 'activity' : 'activities'}`;
+            }
+          }
+        }
+      },
       scales: {
-        x: { grid: { display: false }, ticks: { maxTicksLimit: 7 } },
-        y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Problems' }, ticks: { precision: 0 } },
-        y1: { beginAtZero: true, position: 'right', title: { display: true, text: 'Tracks active' }, grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: textColor,
+            maxTicksLimit: 8,
+            maxRotation: 0,
+            autoSkip: true
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Activity count', color: textColor },
+          ticks: { color: textColor, precision: 0, maxTicksLimit: 6 },
+          grid: { color: gridColor }
+        }
       }
     }
   });
@@ -513,5 +586,8 @@ function refreshDashboard() {
 document.addEventListener('DOMContentLoaded', () => {
   const monthInput = document.getElementById('tracker-month');
   if (monthInput) monthInput.value = monthKey();
-  monthInput?.addEventListener('change', renderDateTracker);
+  monthInput?.addEventListener('change', () => {
+    renderDateTracker();
+    renderDashboardChart();
+  });
 });

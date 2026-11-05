@@ -1,0 +1,358 @@
+{
+  "evaluationDate": "2026-10-08T10:31:39.145Z",
+  "model": "K-Means",
+  "task": "Consistency behaviour classification",
+  "totalTestCases": 25,
+  "classes": [
+    "Inactive",
+    "At Risk",
+    "Irregular",
+    "Consistent",
+    "Highly Consistent"
+  ],
+  "metrics": {
+    "accuracy": 0.96,
+    "precision": 0.967,
+    "recall": 0.96,
+    "f1Score": 0.96
+  },
+  "confusionMatrix": {
+    "Inactive": {
+      "Inactive": 5,
+      "At Risk": 0,
+      "Irregular": 0,
+      "Consistent": 0,
+      "Highly Consistent": 0
+    },
+    "At Risk": {
+      "Inactive": 0,
+      "At Risk": 5,
+      "Irregular": 0,
+      "Consistent": 0,
+      "Highly Consistent": 0
+    },
+    "Irregular": {
+      "Inactive": 0,
+      "At Risk": 1,
+      "Irregular": 4,
+      "Consistent": 0,
+      "Highly Consistent": 0
+    },
+    "Consistent": {
+      "Inactive": 0,
+      "At Risk": 0,
+      "Irregular": 0,
+      "Consistent": 5,
+      "Highly Consistent": 0
+    },
+    "Highly Consistent": {
+      "Inactive": 0,
+      "At Risk": 0,
+      "Irregular": 0,
+      "Consistent": 0,
+      "Highly Consistent": 5
+    }
+  },
+  "predictions": [
+    {
+      "case": 1,
+      "expected": "Inactive",
+      "predicted": "Inactive",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 2,
+      "expected": "Inactive",
+      "predicted": "Inactive",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 3,
+      "expected": "Inactive",
+      "predicted": "Inactive",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 4,
+      "expected": "Inactive",
+      "predicted": "Inactive",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 5,
+      "expected": "Inactive",
+      "predicted": "Inactive",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 6,
+      "expected": "At Risk",
+      "predicted": "At Risk",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 7,
+      "expected": "At Risk",
+      "predicted": "At Risk",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 8,
+      "expected": "At Risk",
+      "predicted": "At Risk",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 9,
+      "expected": "At Risk",
+      "predicted": "At Risk",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 10,
+      "expected": "At Risk",
+      "predicted": "At Risk",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 11,
+      "expected": "Irregular",
+      "predicted": "Irregular",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 12,
+      "expected": "Irregular",
+      "predicted": "At Risk",
+      "correct": false,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 13,
+      "expected": "Irregular",
+      "predicted": "Irregular",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 14,
+      "expected": "Irregular",
+      "predicted": "Irregular",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 15,
+      "expected": "Irregular",
+      "predicted": "Irregular",
+      "correct": true,
+      "cluster": 1,
+      "clusterQuality": 0.455,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 16,
+      "expected": "Consistent",
+      "predicted": "Consistent",
+      "correct": true,
+      "cluster": 2,
+      "clusterQuality": 0.542,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 17,
+      "expected": "Consistent",
+      "predicted": "Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 18,
+      "expected": "Consistent",
+      "predicted": "Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 19,
+      "expected": "Consistent",
+      "predicted": "Consistent",
+      "correct": true,
+      "cluster": 2,
+      "clusterQuality": 0.542,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 20,
+      "expected": "Consistent",
+      "predicted": "Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 21,
+      "expected": "Highly Consistent",
+      "predicted": "Highly Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 22,
+      "expected": "Highly Consistent",
+      "predicted": "Highly Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 23,
+      "expected": "Highly Consistent",
+      "predicted": "Highly Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 24,
+      "expected": "Highly Consistent",
+      "predicted": "Highly Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    },
+    {
+      "case": 25,
+      "expected": "Highly Consistent",
+      "predicted": "Highly Consistent",
+      "correct": true,
+      "cluster": 3,
+      "clusterQuality": 0.769,
+      "silhouetteScore": 0.398,
+      "confidence": "medium",
+      "coldStart": false,
+      "reason": "Assigned to a historical activity cluster using 7 active weeks (33 logged days)."
+    }
+  ]
+}

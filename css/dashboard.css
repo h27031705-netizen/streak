@@ -24,6 +24,30 @@
 .overview-stats span { display: flex; flex-direction: column; gap: 1px; }
 .overview-stats strong { color: white; font-size: 14px; }
 
+.intelligence-section { margin: 0 20px 24px; }
+.intelligence-section .section-heading { align-items: center; }
+.intelligence-section .section-heading h2 { font-size: 18px; }
+.intelligence-content { display: grid; gap: 13px; }
+.intelligence-overview { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.intelligence-score { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.intelligence-score > span, .intelligence-score small, .intelligence-details > p, .insight-features span, .weekly-feature small, .insight-empty { color: var(--color-text-muted); font-size: 11px; line-height: 1.45; }
+.intelligence-score strong { color: var(--color-primary-dark); font: 700 30px/1 var(--font-display); }
+.intelligence-score small { color: var(--color-accent-dark); font-weight: 700; }
+.intelligence-details > p { margin: 0 0 10px; }
+.insight-features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.insight-features > div { display: grid; gap: 3px; min-width: 0; }
+.insight-features strong { font-size: 12px; overflow-wrap: anywhere; }
+.weekly-feature-strip { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: end; gap: 8px; min-height: 74px; }
+.weekly-feature { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 3px; min-width: 0; height: 72px; }
+.weekly-feature > span { font-size: 10px; font-weight: 700; }
+.weekly-feature > i { display: flex; align-items: end; width: 100%; max-width: 24px; height: 36px; overflow: hidden; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); }
+.weekly-feature b { display: block; width: 100%; min-height: 3px; border-radius: 4px 4px 0 0; background: var(--color-primary-light); }
+.weekly-feature small { font-size: 9px; }
+.intelligence-lists { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.intelligence-lists h3 { margin-bottom: 7px; font: 700 12px var(--font-display); }
+.intelligence-lists ul { display: grid; gap: 6px; margin: 0; padding-left: 16px; color: var(--color-text-muted); font-size: 11px; line-height: 1.5; }
+.intelligence-lists li::marker { color: var(--color-accent); }
+
 .platform-cards { flex: 1; overflow-y: auto; padding: 0 20px 120px; display: flex; flex-direction: column; gap: 13px; }
 .platform-card {
   padding: 16px;
@@ -65,4 +89,12 @@
 .progress-track span { display: block; height: 100%; border-radius: inherit; transition: width 1s cubic-bezier(.22,1,.36,1); }
 
 @keyframes riseIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .intelligence-section { margin-right: 14px; margin-left: 14px; }
+  .intelligence-section .section-heading { align-items: flex-start; flex-direction: column; }
+  .intelligence-overview { grid-template-columns: 1fr; gap: 12px; }
+  .insight-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intelligence-lists { grid-template-columns: 1fr; }
+}
+@media (min-width: 601px) and (max-width: 900px) { .intelligence-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 700px) { .app-shell { margin: 18px auto; height: calc(100vh - 36px); border-radius: 34px; } }

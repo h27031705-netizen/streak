@@ -126,6 +126,7 @@ function escapeHTML(str) {
 function getAIResponse(question) {
   const q = question.toLowerCase();
 
+  if (q.includes('insight') || q.includes('consistency score') || q.includes('classif') || q.includes('pattern')) return answerPersonalInsights();
   if ((q.includes('compare') || q.includes('versus') || q.includes(' vs ')) && q.includes('platform')) return answerPlatformComparison();
   if (q.includes('most') && q.includes('platform')) return answerMostUsedPlatform();
   if (q.includes('yesterday')) return answerDayHistory(daysAgoISO(1), 'yesterday');
@@ -143,6 +144,10 @@ function getAIResponse(question) {
 
 
 function answerDayHistory(date, label) {
+  const unified = (AppData.state.activityHistory || []).filter(event => event.date === date);
+  if (unified.length) {
+    return { text: `Here is the activity history I have for ${label}:\n\n${unified.map(event => `**${event.title}** — ${Number(event.amount).toLocaleString()} ${event.unit}${event.detail ? ` · ${event.detail}` : ''}`).join('\n')}` };
+  }
   const matches = AppData.getPlatforms().flatMap(platform => (platform.activityLog || []).filter(entry => entry.date === date).map(entry => ({ platform, entry })));
   if (!matches.length) return { text: `I don't have stored activity for ${label} yet. Sync a connected platform and I can check again. 📭` };
   const lines = matches.flatMap(({ platform, entry }) => {
@@ -216,6 +221,10 @@ function answerWeakAreas() {
 }
 
 function answerDailyPlan() {
+  const insight = AppData.state.intelligence;
+  if (insight?.recommendations?.length) {
+    return { text: `Based on your saved activity and ${insight.classifier?.model || 'consistency'} analysis:\n\n${insight.recommendations.map((item, index) => `${index + 1}. ${item}`).join('\n')}` };
+  }
   const platforms = AppData.getPlatforms().filter(platform => getPlatformStats(platform).isCoding);
   if (!platforms.length) return { text: "Add a platform first so I can build you a plan! 🧩" };
 
@@ -229,6 +238,81 @@ function answerDailyPlan() {
   ).join('\n');
 
   return { text: `Here's your personalized plan for today:\n\n${plan}\n\nSmall consistent steps beat big irregular bursts. You've got this! 💪` };
+}
+
+function answerPersonalInsights() {
+  const insight = AppData.state.intelligence;
+
+  if (!insight || insight.score === null) {
+    return {
+      text: 'There is not enough saved activity to calculate a consistency score yet. Log several days of activity and I will analyze the pattern.'
+    };
+  }
+
+  const classifier = insight.classifier || {};
+
+  const reasons =
+    (insight.reasons || [])
+      .map(reason => `• ${reason}`)
+      .join('\n') ||
+    'No scored factors yet.';
+
+  const recommendations =
+    (insight.recommendations || [])
+      .map(item => `• ${item}`)
+      .join('\n') ||
+    'No recommendations available.';
+    const mlRecommendation = getMLRecommendation(
+  classifier.classification
+);
+
+  let mlDetails = '';
+
+  if (!classifier.coldStart && classifier.cluster !== null) {
+    mlDetails =
+      `\n\n**Machine Learning Analysis**\n` +
+      `• Model: **${classifier.model || 'K-Means'}**\n` +
+      `• Behaviour cluster: **Cluster ${classifier.cluster}**\n` +
+      `• Cluster quality: **${classifier.clusterQuality ?? '—'}**\n` +
+      `• Silhouette score: **${classifier.silhouetteScore ?? '—'}**\n` +
+      `• Confidence: **${classifier.confidence || 'pending'}**`;
+  } else {
+    mlDetails =
+      `\n\n**Machine Learning Analysis**\n` +
+      `The system is still collecting enough activity history before making a reliable K-Means classification.`;
+  }
+
+  return {
+    text:
+      `**Consistency score: ${insight.score}%**\n` +
+      `**Pattern:** ${classifier.classification || 'Collecting activity'}` +
+      ` (${classifier.model || 'model'}; ${classifier.confidence || 'confidence pending'})` +
+      `${mlDetails}\n\n` +
+      `**Evidence**\n${reasons}\n\n` +
+      `**ML-based recommendation**\n${mlRecommendation}\n\n` +
+`**Recommended next steps**\n${recommendations}`
+  };
+}
+function getMLRecommendation(classification) {
+  switch (classification) {
+    case 'Inactive':
+      return 'Your activity level is currently low. Start with one small task today and rebuild your daily rhythm.';
+
+    case 'At Risk':
+      return 'Your activity pattern shows signs of decline. Focus on completing one short session today to recover your consistency.';
+
+    case 'Irregular':
+      return 'Your activity pattern is irregular. Try following a fixed practice schedule with shorter but regular sessions.';
+
+    case 'Consistent':
+      return 'Your activity pattern is consistent. Keep your current rhythm and gradually increase the difficulty of your tasks.';
+
+    case 'Highly Consistent':
+      return 'Excellent consistency! You can now challenge yourself with a stronger goal while maintaining your current routine.';
+
+    default:
+      return 'Keep logging your activities so I can learn more about your behaviour pattern.';
+  }
 }
 
 function answerProgressChart() {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>StreakForce 🔥</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔥%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="assets/images/streakforce-flame.png">
 
 <link rel="stylesheet" href="css/variables.css">
 <link rel="stylesheet" href="css/base.css">
@@ -16,8 +16,9 @@
 <link rel="stylesheet" href="css/ai_assistant.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/tracker.css">
+<link rel="stylesheet" href="css/polish.css">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -26,7 +27,7 @@
   <!-- ===================== ACCOUNT ACCESS ===================== -->
   <section id="screen-auth" class="screen">
     <div class="auth-panel">
-      <div class="auth-mark">SF</div>
+      <div class="auth-mark"><img src="assets/images/streakforce-flame.png" alt="StreakForce flame"></div>
       <p class="eyebrow">YOUR DAILY PRACTICE, IN ONE PLACE</p>
       <h1>Make progress<br><em>visible.</em></h1>
       <p class="auth-copy">A personal home for your coding, language learning, and ideas.</p>
@@ -36,12 +37,34 @@
         <input id="auth-email" type="text" autocomplete="username" placeholder="you@example.com or user ID" required>
         <label for="auth-password">Password</label>
         <div class="password-field"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" placeholder="At least 10 characters" required><button class="password-visibility" type="button" data-password-target="auth-password" aria-label="Show password" title="Show password">◉</button></div>
+        <button id="forgot-password" class="auth-link" type="button">Forgot Password?</button>
+        <div id="auth-security-fields" hidden>
+          <label for="auth-security-question">Security question</label><input id="auth-security-question" type="text" maxlength="200" placeholder="Your own question" disabled>
+          <label for="auth-security-answer">Security answer</label><input id="auth-security-answer" type="text" maxlength="200" autocomplete="off" placeholder="Your answer" disabled>
+        </div>
         <div id="auth-confirm-field" hidden><label for="auth-confirm-password">Confirm password</label><div class="password-field"><input id="auth-confirm-password" type="password" autocomplete="new-password" minlength="10" placeholder="Re-enter your password" disabled><button class="password-visibility" type="button" data-password-target="auth-confirm-password" aria-label="Show confirm password" title="Show password">◉</button></div></div>
         <label id="remember-row" class="remember-row"><input id="remember-me" type="checkbox"><span>Remember me</span></label>
         <button id="auth-submit" class="btn-primary" type="submit">Login</button>
         <p id="auth-status" class="auth-status" role="status"></p>
       </form>
       <button id="auth-mode-toggle" class="auth-mode-toggle" type="button">Create New Account</button>
+      <div id="auth-recovery" hidden>
+        <form id="recovery-identifier-form" class="auth-form">
+          <label for="recovery-identifier">Registered email / user ID</label><input id="recovery-identifier" type="text" autocomplete="username" required>
+          <button class="btn-primary" type="submit">Find account</button><p class="auth-status" id="recovery-identifier-status" role="status"></p>
+        </form>
+        <form id="recovery-answer-form" class="auth-form" hidden>
+          <p class="auth-copy" id="recovery-question"></p>
+          <label for="recovery-answer">Security answer</label><input id="recovery-answer" type="text" autocomplete="off" required>
+          <button class="btn-primary" type="submit">Continue</button><p class="auth-status" id="recovery-answer-status" role="status"></p>
+        </form>
+        <form id="recovery-password-form" class="auth-form" hidden>
+          <label for="recovery-new-password">New password</label><input id="recovery-new-password" type="password" minlength="10" autocomplete="new-password" required>
+          <label for="recovery-confirm-password">Confirm new password</label><input id="recovery-confirm-password" type="password" minlength="10" autocomplete="new-password" required>
+          <button class="btn-primary" type="submit">Reset password</button><p class="auth-status" id="recovery-password-status" role="status"></p>
+        </form>
+        <button id="recovery-back" class="auth-mode-toggle" type="button">Back to login</button>
+      </div>
       <p class="auth-privacy">Your activity is private to your account. Email and password are stored securely on this device's app server.</p>
     </div>
   </section>
@@ -49,7 +72,7 @@
   <!-- ===================== SPLASH SCREEN ===================== -->
   <section id="screen-splash" class="screen active">
     <div class="splash-content">
-      <div class="splash-logo">🔥</div>
+      <div class="splash-logo"><img src="assets/images/streakforce-flame.png" alt="StreakForce flame"></div>
       <h1 class="splash-title">Streak<span>Force</span></h1>
       <p class="splash-tagline">Code daily. Stay unstoppable. 💪</p>
       <div class="splash-loader"><div class="splash-loader-bar"></div></div>
@@ -71,7 +94,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">YOUR PRACTICE, AT A GLANCE</p>
-        <h2>StreakForce <span class="title-spark">✳</span></h2>
+        <h2 class="dashboard-brand"><img src="assets/images/streakforce-flame.png" alt="" aria-hidden="true">StreakForce</h2>
       </div>
       <div class="account-actions">
         <span id="account-email" class="account-email"></span>
@@ -86,6 +109,15 @@
       <aside id="motivation-banner" class="motivation-banner" hidden></aside>
       <div id="dashboard-summary" class="dashboard-summary"></div>
       <section id="dashboard-focus" class="dashboard-focus" aria-label="Today's focus and achievements"></section>
+      <section class="intelligence-section" aria-labelledby="intelligence-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">EVIDENCE FROM YOUR ACTIVITY</p><h2 id="intelligence-title">Consistency insights</h2></div>
+          <div class="insight-actions">
+            <button id="open-activity-history" class="btn-secondary" type="button">Activity history</button>
+          </div>
+        </div>
+        <div id="intelligence-content" class="intelligence-content"></div>
+      </section>
       <div id="period-summary" class="period-summary"></div>
       <section class="tracker-section">
         <div class="section-heading">
@@ -94,23 +126,31 @@
         </div>
         <div id="tracker-content" class="tracker-content"></div>
       </section>
-      <section class="chart-section">
-        <div class="section-heading"><div><p class="eyebrow">CONSISTENCY OVER TIME</p><h2>Your rhythm</h2></div></div>
-        <div class="card dashboard-chart-card"><div class="chart-canvas-wrap"><canvas id="dashboard-chart"></canvas></div></div>
-      </section>
       <section class="platform-section">
-        <div class="section-heading"><div><p class="eyebrow">ALL SEVEN TRACKS</p><h2>Platforms</h2></div></div>
+        <div class="section-heading"><div><p class="eyebrow">YOUR TRACKS</p><h2>Platforms</h2></div></div>
         <div id="platform-cards" class="platform-cards"><!-- injected by platforms.js --></div>
       </section>
     </main>
 
-    <button class="fab" id="btn-add-platform">➕</button>
 
-    <nav class="bottom-nav">
-      <button class="nav-item active" data-screen="screen-dashboard" aria-label="Home">🏠<span>Home</span></button>
-      <button class="nav-item" data-screen="screen-ai" aria-label="AI Coach">🤖<span>AI Coach</span></button>
-      <button class="nav-item" data-screen="screen-add-platform" aria-label="Platforms">🧩<span>Platforms</span></button>
-    </nav>
+<button class="fab" id="btn-add-platform">➕</button>
+
+<nav class="bottom-nav">
+  <span class="nav-brand" aria-label="StreakForce"><img src="assets/images/streakforce-flame.png" alt=""></span>
+  <button class="nav-item active" data-screen="screen-dashboard" aria-label="Home">
+    🏠<span>Home</span>
+  </button>
+  <button class="nav-item" data-screen="screen-ai" aria-label="AI Coach">
+    🤖<span>AI Coach</span>
+  </button>
+  <button class="nav-item" data-screen="screen-add-platform" aria-label="Platforms">
+    🧩<span>Platforms</span>
+  </button>
+  <button class="nav-item" data-screen="screen-targets" aria-label="My Targets">
+    🎯<span>Targets</span>
+  </button>
+</nav>
+
   </section>
 
   <!-- ===================== PLATFORM DETAIL / ANALYTICS ===================== -->
@@ -132,6 +172,27 @@
     </header>
     <div id="ap-content" class="ap-content"><!-- injected by platforms.js --></div>
   </section>
+
+
+<!-- ===================== MY TARGETS ===================== -->
+<section id="screen-targets" class="screen">
+  <header class="topbar">
+    <button
+      class="icon-btn"
+      data-back="screen-dashboard"
+      aria-label="Back"
+    >⬅️</button>
+
+    <h2>My Targets 🎯</h2>
+    <span></span>
+  </header>
+
+  <div class="ap-content">
+    <div id="goals-manager-content"></div>
+  </div>
+</section>
+<!-- ===================== END MY TARGETS ===================== -->
+
 
   <!-- ===================== AI ASSISTANT ===================== -->
   <section id="screen-ai" class="screen">
@@ -169,11 +230,12 @@
 
 <script src="js/utils.js"></script>
 <script src="js/data.js"></script>
+<script src="js/app.js"></script>
 <script src="js/streaks.js"></script>
 <script src="js/tracker.js"></script>
 <script src="js/platforms.js"></script>
+<script src="js/productivity.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/ai_assistant.js"></script>
-<script src="js/app.js"></script>
 </body>
 </html>

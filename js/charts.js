@@ -18,10 +18,13 @@ function renderPlatformDetailContent(platform) {
     coding: 'Problems solved',
     session: 'Sessions completed',
     language: 'XP recorded',
-    ideas: 'Ideas worked on'
+    ideas: 'Ideas worked on',
+    custom: platform.itemCategory || `${platform.itemType} activity`
   };
   const connected = Boolean(platform.username);
-  const integration = platform.id === 'codechef'
+  const integration = platform.customItemId
+    ? platform.description || 'This item uses manual activity tracking.'
+    : platform.id === 'codechef'
     ? 'Lifetime solved total syncs from your public CodeChef profile. Reliable dated submission history is unavailable; manual daily rows are separate.'
     : platform.id === 'duolingo'
       ? 'Duolingo does not offer a supported public progress API here. XP is recorded manually.'
@@ -34,7 +37,7 @@ function renderPlatformDetailContent(platform) {
 
   const hero = el('section', 'card detail-summary');
   hero.style.setProperty('--platform-color', platform.color);
-  hero.innerHTML = `<div class="detail-summary-top"><div class="platform-icon">${platform.icon}</div><div><p class="eyebrow">${platform.category === 'coding' ? (connected ? 'PUBLIC PROFILE' : 'PROFILE NOT CONNECTED') : 'PERSONAL TRACKING'}</p><h3>${labels[platform.category]}</h3></div></div><strong class="detail-total">${Number(stats.total).toLocaleString()}</strong><p class="integration-note">${integration}${escapeHtml(syncScope)}</p>`;
+  hero.innerHTML = `<div class="detail-summary-top"><div class="platform-icon">${platform.icon}</div><div><p class="eyebrow">${platform.category === 'coding' ? (connected ? 'PUBLIC PROFILE' : 'PROFILE NOT CONNECTED') : 'PERSONAL TRACKING'}</p><h3>${escapeHtml(labels[platform.category] || 'Additional activity')}</h3></div></div><strong class="detail-total">${Number(stats.total).toLocaleString()}</strong><p class="integration-note">${escapeHtml(integration)}${escapeHtml(syncScope)}</p>`;
   container.appendChild(hero);
 
   const grid = el('div', 'pd-stats-grid');
@@ -51,7 +54,7 @@ function renderPlatformDetailContent(platform) {
   container.appendChild(grid);
 
   const actions = el('div', 'detail-actions');
-  if (MANUAL_PLATFORM_IDS.includes(platform.id)) {
+  if (isManualActivityPlatform(platform)) {
     const logButton = el('button', 'btn-primary', `+ Log ${platform.id === 'speakits' ? 'session' : 'activity'}`);
     logButton.addEventListener('click', () => openActivityDialog(platform.id));
     actions.appendChild(logButton);
@@ -80,7 +83,7 @@ function renderPlatformDetailContent(platform) {
   container.appendChild(syncStatus);
 
   const chartCard = el('div', 'card pd-chart-box');
-  chartCard.innerHTML = `<div class="pd-section-title">Activity over time</div><p class="pd-helper">Daily ${platform.category === 'coding' ? 'problems solved' : platform.id === 'speakits' ? 'sessions' : platform.id === 'duolingo' ? 'XP earned' : 'ideas worked on'} · last 30 days</p><div class="chart-canvas-wrap"><canvas id="pd-chart"></canvas></div>`;
+  chartCard.innerHTML = `<div class="pd-section-title">Activity over time</div><p class="pd-helper">Daily ${platform.customItemId ? escapeHtml(labels[platform.category]) : platform.category === 'coding' ? 'problems solved' : platform.id === 'speakits' ? 'sessions' : platform.id === 'duolingo' ? 'XP earned' : 'ideas worked on'} · last 30 days</p><div class="chart-canvas-wrap"><canvas id="pd-chart"></canvas></div>`;
   container.appendChild(chartCard);
 
   const logHeading = el('div', 'pd-section-title', 'Recent activity');
@@ -95,7 +98,7 @@ function renderPlatformDetailContent(platform) {
     const list = el('div', 'pd-activity-log');
     entries.slice(0, 30).forEach(entry => {
       const row = el('article', 'card pd-activity-row');
-      const amount = platform.id === 'speakits' ? 'Session completed' : `${entry.amount.toLocaleString()} ${platform.id === 'duolingo' ? 'XP' : platform.id === 'dsa-ideas' ? (entry.amount === 1 ? 'idea' : 'ideas') : 'problems solved'}`;
+      const amount = platform.id === 'speakits' ? 'Session completed' : `${entry.amount.toLocaleString()} ${platform.customItemId ? 'activities' : platform.id === 'duolingo' ? 'XP' : platform.id === 'dsa-ideas' ? (entry.amount === 1 ? 'idea' : 'ideas') : 'problems solved'}`;
       row.innerHTML = `<span class="dot green"></span><div class="details"><div class="desc">${amount}</div><div class="date">${formatDateLabel(entry.date)}${entry.note ? ` · ${escapeHtml(entry.note)}` : ''}</div></div>`;
       list.appendChild(row);
     });

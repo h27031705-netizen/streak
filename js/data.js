@@ -7,11 +7,53 @@ const PLATFORM_DEFINITIONS = [
   { id: 'duolingo', name: 'Duolingo', icon: '🦉', color: '#59B847', category: 'language', unit: 'XP', integration: 'manual' },
   { id: 'dsa-ideas', name: 'DSA Ideas', icon: '💡', color: '#D99A32', category: 'ideas', unit: 'ideas', integration: 'manual' }
 ];
+const CATALOG_TYPE_PRESENTATION = {
+  client: { icon: '🏢', color: '#638B7A' },
+  app: { icon: '▣', color: '#557DA9' },
+  platform: { icon: '🧩', color: '#D17D5B' },
+  service: { icon: '⚙', color: '#71819B' },
+  project: { icon: '◩', color: '#A17B54' },
+  integration: { icon: '↗', color: '#728B55' }
+};
+
+function toCatalogPlatform(item, frozenPlatforms = []) {
+  const id = `custom-${item.id}`;
+  const presentation = CATALOG_TYPE_PRESENTATION[item.itemType] || CATALOG_TYPE_PRESENTATION.platform;
+  return {
+    id,
+    customItemId: Number(item.id),
+    itemType: item.itemType,
+    name: item.name,
+    description: item.description || '',
+    itemCategory: item.category || '',
+    platformApp: item.platformApp || '',
+    username: item.username || '',
+    url: item.url || '',
+    status: item.status,
+    icon: presentation.icon,
+    color: presentation.color,
+    category: 'custom',
+    unit: 'activities',
+    integration: 'manual',
+    profileUrl: item.url || '',
+    activityLog: [],
+    stats: {},
+    syncStatus: 'never',
+    frozen: item.status !== 'active' || frozenPlatforms.includes(id)
+  };
+}
 
 function createEmptyState() {
   return {
     profile: null,
     platforms: PLATFORM_DEFINITIONS.map(platform => ({ ...platform, username: '', profileUrl: '', activityLog: [], stats: {}, syncStatus: 'never', frozen: false })),
+    customItems: [],
+    customActivities: [],
+    projects: [],
+    goals: [],
+    activityHistory: [],
+    intelligence: null,
+    intelligenceError: null,
     manualActivities: [],
     settings: {}
   };
@@ -58,6 +100,39 @@ const AppData = {
     return result.profile;
   },
 
+  async getRecoveryQuestion(identifier) {
+    return apiRequest('/api/auth/recovery/question', { method: 'POST', body: JSON.stringify({ identifier }) });
+  },
+
+  async verifyRecoveryAnswer(identifier, answer) {
+    return apiRequest('/api/auth/recovery/verify', { method: 'POST', body: JSON.stringify({ identifier, answer }) });
+  },
+
+  async resetPassword(newPassword) {
+    return apiRequest('/api/auth/recovery/reset', { method: 'POST', body: JSON.stringify({ newPassword }) });
+  },
+
+  async saveSecurityQuestion(currentPassword, securityQuestion, securityAnswer) {
+    return apiRequest('/api/auth/security-question', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, securityQuestion, securityAnswer })
+    });
+  },
+
+  async loadIntelligence() {
+    try {
+      const result = await apiRequest(`/api/intelligence?today=${encodeURIComponent(todayISO())}`);
+      this.state.intelligence = result;
+      this.state.activityHistory = result.activityHistory || [];
+      this.state.intelligenceError = null;
+      return result;
+    } catch (error) {
+      this.state.intelligence = null;
+      this.state.intelligenceError = error.message;
+      return null;
+    }
+  },
+
   async logout() {
     await apiRequest('/api/auth/logout', { method: 'POST' });
     this.profile = null;
@@ -76,6 +151,12 @@ const AppData = {
       this.state.manualActivities = remote.manualActivities || [];
       const frozenPlatforms = new Set(this.state.settings.frozenPlatforms || []);
       this.state.platforms.forEach(platform => { platform.frozen = frozenPlatforms.has(platform.id); });
+      this.state.customItems = remote.catalogItems || [];
+      this.state.customActivities = remote.customActivities || [];
+      this.state.projects = remote.projects || [];
+      this.state.goals = remote.goals || [];
+      this.state.activityHistory = remote.activityHistory || [];
+      this.state.platforms.push(...this.state.customItems.filter(item => item.status === 'active').map(item => toCatalogPlatform(item, [...frozenPlatforms])));
 
       remote.connections.forEach(connection => {
         const platform = this.getPlatform(connection.platform_id);
@@ -112,6 +193,11 @@ const AppData = {
         if (platform) platform.activityLog.push({ ...day, _names: undefined });
       });
       this.state.platforms.forEach(platform => platform.activityLog.sort((a, b) => a.date.localeCompare(b.date)));
+      this.loadIntelligence().then(() => {
+  if (activeScreen === 'screen-dashboard') {
+    renderDashboardInsights();
+  }
+});
 
       if (this.state.settings.autoSync) {
         remote.connections.filter(connection => connection.username && ['leetcode', 'codechef', 'codeforces', 'atcoder'].includes(connection.platform_id)).forEach(connection => {
@@ -140,6 +226,126 @@ const AppData = {
     return connection;
   },
 
+  async createCatalogItem(itemData) {
+    const result = await apiRequest('/api/catalog-items', { method: 'POST', body: JSON.stringify(itemData) });
+    this.state.customItems.push(result.item);
+    if (result.item.status === 'active') this.state.platforms.push(toCatalogPlatform(result.item, this.state.settings.frozenPlatforms || []));
+    return result.item;
+  },
+
+  async updateCatalogItem(itemId, itemData) {
+    const result = await apiRequest(`/api/catalog-items/${encodeURIComponent(itemId)}`, { method: 'PUT', body: JSON.stringify(itemData) });
+    this.state.customItems = this.state.customItems.map(item => item.id === result.item.id ? result.item : item);
+    this.state.platforms = this.state.platforms.filter(platform => platform.customItemId !== result.item.id);
+    if (result.item.status === 'active') this.state.platforms.push(toCatalogPlatform(result.item, this.state.settings.frozenPlatforms || []));
+    return result.item;
+  },
+
+  async deleteCatalogItem(itemId) {
+    await apiRequest(`/api/catalog-items/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+    this.state.customItems = this.state.customItems.filter(item => item.id !== Number(itemId));
+    this.state.platforms = this.state.platforms.filter(platform => platform.customItemId !== Number(itemId));
+  },
+
+  async createCustomActivity(activity) {
+    const result = await apiRequest('/api/custom-activities', { method: 'POST', body: JSON.stringify(activity) });
+    this.state.customActivities.push(result.activity);
+    await this.loadIntelligence();
+    return result.activity;
+  },
+
+  async updateCustomActivity(activityId, activity) {
+    const result = await apiRequest(`/api/custom-activities/${encodeURIComponent(activityId)}`, { method: 'PUT', body: JSON.stringify(activity) });
+    this.state.customActivities = this.state.customActivities.map(item => item.id === result.activity.id ? result.activity : item);
+    await this.loadIntelligence();
+    return result.activity;
+  },
+
+  async deleteCustomActivity(activityId) {
+    await apiRequest(`/api/custom-activities/${encodeURIComponent(activityId)}`, { method: 'DELETE' });
+    this.state.customActivities = this.state.customActivities.filter(item => item.id !== Number(activityId));
+    await this.loadIntelligence();
+  },
+
+  async logCustomActivity(activityId, entry) {
+    const result = await apiRequest(`/api/custom-activities/${encodeURIComponent(activityId)}/logs`, { method: 'POST', body: JSON.stringify(entry) });
+    await this.loadIntelligence();
+    return result.log;
+  },
+
+  async createProject(project) {
+    const result = await apiRequest('/api/projects', { method: 'POST', body: JSON.stringify(project) });
+    this.state.projects.push(result.project);
+    await this.loadIntelligence();
+    return result.project;
+  },
+
+  async updateProject(projectId, project) {
+    const result = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'PUT', body: JSON.stringify(project) });
+    this.state.projects = this.state.projects.map(item => item.id === result.project.id ? { ...item, ...result.project } : item);
+    await this.loadIntelligence();
+    return result.project;
+  },
+
+  async deleteProject(projectId) {
+    await apiRequest(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+    this.state.projects = this.state.projects.filter(item => item.id !== Number(projectId));
+    await this.loadIntelligence();
+  },
+
+  async createProjectTask(projectId, task) {
+    const result = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}/tasks`, { method: 'POST', body: JSON.stringify(task) });
+    const project = this.state.projects.find(item => item.id === Number(projectId));
+    if (project) project.tasks.push(result.task);
+    await this.loadIntelligence();
+    return result.task;
+  },
+
+  async updateProjectTask(projectId, taskId, task) {
+    const result = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: 'PUT', body: JSON.stringify(task) });
+    const project = this.state.projects.find(item => item.id === Number(projectId));
+    if (project) project.tasks = project.tasks.map(item => item.id === result.task.id ? result.task : item);
+    await this.loadIntelligence();
+    return result.task;
+  },
+
+  async deleteProjectTask(projectId, taskId) {
+    await apiRequest(`/api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+    const project = this.state.projects.find(item => item.id === Number(projectId));
+    if (project) project.tasks = project.tasks.filter(item => item.id !== Number(taskId));
+    await this.loadIntelligence();
+  },
+
+  async createGoal(goal) {
+    const result = await apiRequest('/api/goals', { method: 'POST', body: JSON.stringify(goal) });
+    this.state.goals.push(result.goal);
+    await this.loadIntelligence();
+    return result.goal;
+  },
+
+  async updateGoal(goalId, goal) {
+    const result = await apiRequest(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'PUT', body: JSON.stringify(goal) });
+    this.state.goals = this.state.goals.map(item => item.id === result.goal.id ? result.goal : item);
+    await this.loadIntelligence();
+    return result.goal;
+  },
+
+  async deleteGoal(goalId) {
+    await apiRequest(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'DELETE' });
+    this.state.goals = this.state.goals.filter(item => item.id !== Number(goalId));
+    await this.loadIntelligence();
+  },
+
+  async addGoalProgress(goalId, amount, date, note = '') {
+    const result = await apiRequest(`/api/goals/${encodeURIComponent(goalId)}/progress`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, date, note })
+    });
+    this.state.goals = this.state.goals.map(item => item.id === result.goal.id ? result.goal : item);
+    await this.loadIntelligence();
+    return result;
+  },
+
   async syncPlatform(platformId) {
     const platform = this.getPlatform(platformId);
     let result;
@@ -157,6 +363,7 @@ const AppData = {
       platform.syncStatus = 'success';
       platform.syncError = null;
     }
+    await this.loadIntelligence();
     if (activeScreen === 'screen-dashboard') renderDashboardCards();
     return result;
   },
@@ -171,12 +378,14 @@ const AppData = {
     const saved = await apiRequest('/api/manual-activities', { method: 'POST', body: JSON.stringify(entry) });
     this.state.manualActivities = this.state.manualActivities.filter(item => !(item.platform_id === saved.platformId && item.date === saved.date));
     this.state.manualActivities.push({ platform_id: saved.platformId, date: saved.date, amount: saved.amount, note: saved.note });
+    await this.loadIntelligence();
     return saved;
   },
 
   async removeManualActivity(platformId, date) {
     await apiRequest(`/api/manual-activities/${encodeURIComponent(platformId)}/${encodeURIComponent(date)}`, { method: 'DELETE' });
     this.state.manualActivities = this.state.manualActivities.filter(item => !(item.platform_id === platformId && item.date === date));
+    await this.loadIntelligence();
   },
 
   async saveSettings(settings) {
@@ -216,3 +425,4 @@ const AppData = {
     await this.saveSettings(settings);
   }
 };
+window.AppData = AppData;
