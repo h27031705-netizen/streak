@@ -3,3 +3,4 @@ streakforce.sqlite
 streakforce.sqlite-shm
 streakforce.sqlite-wal
 streakforce-pre-migration.sqlite
+streakforce-pre-migration.sqlite-*
