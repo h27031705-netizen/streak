@@ -23,8 +23,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is missing.');
+if (!process.env.PRODUCTION_DATABASE_URL) {
+  throw new Error('PRODUCTION_DATABASE_URL is missing.');
 }
 
 
