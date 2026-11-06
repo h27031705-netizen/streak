@@ -6,3 +6,14 @@ streakforce-pre-migration.sqlite
 streakforce-pre-migration.sqlite-*
 
 .env
+.env.*
+!.env.example
+
+node_modules/
+streak/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+server-sqlite-backup.js
+lib/consistency.backup.js
